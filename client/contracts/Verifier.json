@@ -29913,12 +29913,13 @@
     "44787": {
       "events": {},
       "links": {},
-      "address": "0x66b685aDC160B52E5b5290CA44ff4E39dA66f334",
-      "transactionHash": "0xa8a2cf784ec0a733927bb9f1333d7a2500965705a2fed806eeaed840ad98c8d8"
+      "address": "0x34a9A742A67350C65269F03a36E7f505CB6fb372",
+      "transactionHash": "0x318230393054b104925c14000987a310a6264a7afffbf7f42015f86d71aa781c"
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2021-04-02T22:36:14.616Z",
+  "updatedAt": "2021-04-02T22:48:58.028Z",
+  "networkType": "ethereum",
   "devdoc": {
     "methods": {}
   },

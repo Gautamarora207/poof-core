@@ -85,11 +85,15 @@ module.exports = {
     // CELO networks
     alfajores: {
       provider: kit.web3.currentProvider,
-      network_id: 44787
+      network_id: 44787,
+      gas: 6000000,
+      gasPrice: utils.toWei('0.1', 'gwei'),
     },
     mainnet: {
       provider: kit.web3.currentProvider,
-      network_id: 42220
+      network_id: 42220,
+      gas: 6000000,
+      gasPrice: utils.toWei('0.1', 'gwei'),
     }
 
     // Useful for private networks

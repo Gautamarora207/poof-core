@@ -40,10 +40,11 @@
     "44787": {
       "events": {},
       "links": {},
-      "address": "0xd6ae2Af69ECb0A799a00c21e379e07f3bA185d6b",
-      "transactionHash": "0x0846464344daa2872ed30dc4dcbf9b5d7f5982298d99f1334a580650ca16528a"
+      "address": "0x7140400a0521C25042Deb4576b19adD6A5342FAb",
+      "transactionHash": "0xc787a442bca727312a1afc9c6c72196f61d636a73bd9dab9f02a375ce5ed7038"
     }
   },
   "schemaVersion": "3.3.4",
-  "updatedAt": "2021-04-02T22:36:14.630Z"
+  "updatedAt": "2021-04-02T22:48:58.057Z",
+  "networkType": "ethereum"
 }
