@@ -24,7 +24,8 @@ You can read more about it in [this medium article](https://medium.com/@tornado.
 
 ## Was it audited?
 
-Poof.cash has not yet been audited. Please use Poof.cash at your own risk.
+Contracts were most recently audited by Bramah Systems as of commit `4d028922e60ab5d01bb4fcbe3396b24317b7be62`
+https://bramah.systems/audits/Poof_Cash_Audit_Bramah.pdf
 
 ## Requirements
 
@@ -137,7 +138,3 @@ zkutil export-keys -c build/circuits/withdraw.json -p build/circuits/withdraw.pa
 zkutil generate-verifier -p build/circuits/withdraw.params -v build/circuits/Verifier.sol
 sed -i -e 's/pragma solidity \^0.6.0/pragma solidity 0.5.17/g' ./build/circuits/Verifier.sol
 ```
-
-# Audits
-Contracts were audited by Bramah Systems as of commit `4d028922e60ab5d01bb4fcbe3396b24317b7be62`
-https://bramah.systems/audits/Poof_Cash_Audit_Bramah.pdf
