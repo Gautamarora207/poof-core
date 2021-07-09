@@ -15,8 +15,6 @@ You can read more about it in [this medium article](https://medium.com/@tornado.
 
 ## Deploy ERC20 Poof Cash
 
-NOTE:
-
 1. `npm i`
 2. `npm run download`
 3. `npm run build:contract`
@@ -26,8 +24,6 @@ NOTE:
   - For `ERC20_TOKEN` specify the token address you want to support
 5. `npx truffle migrate --network mainnet`
 6. OPTIONAL: `npx truffle migrate --network mainnet --reset --f 5` for each additional pool
-
-**Note**. If you want to reuse the same verifier for all the instances, then after you deployed one of the instances you should only run the 5th migration (`--f 5`). Likely, you will want to tune your .env parameters for each run of the 5th migration.
 
 ## Specs
 
