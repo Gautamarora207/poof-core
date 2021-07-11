@@ -1,9 +1,9 @@
 /* global artifacts */
-const Migrations = artifacts.require('Migrations')
+const Migrations = artifacts.require("Migrations");
 
-module.exports = function(deployer) {
-  if(deployer.network === 'mainnet') {
-    return
+module.exports = function (deployer) {
+  if (deployer.network === "mainnet") {
+    return;
   }
-  deployer.deploy(Migrations)
-}
+  deployer.deploy(Migrations);
+};

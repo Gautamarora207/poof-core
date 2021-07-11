@@ -1,15 +1,15 @@
-require('dotenv').config()
-const HDWalletProvider = require('@truffle/hdwallet-provider')
-const utils = require('web3-utils')
+require("dotenv").config();
+const HDWalletProvider = require("@truffle/hdwallet-provider");
+const utils = require("web3-utils");
 
-const ContractKit = require('@celo/contractkit')
-const Web3 = require('web3')
-const path = require('path')
+const ContractKit = require("@celo/contractkit");
+const Web3 = require("web3");
+const path = require("path");
 
 // Connect to the desired network
-const web3 = new Web3(process.env.RPC_URL)
-const kit = ContractKit.newKitFromWeb3(web3)
-kit.addAccount(process.env.PRIVATE_KEY)
+const web3 = new Web3(process.env.RPC_URL);
+const kit = ContractKit.newKitFromWeb3(web3);
+kit.addAccount(process.env.PRIVATE_KEY);
 
 module.exports = {
   contracts_build_directory: path.join(__dirname, "client/contracts"),
@@ -31,9 +31,9 @@ module.exports = {
     // options below to some value.
 
     development: {
-      host: '127.0.0.1',     // Localhost (default: none)
-      port: 8545,            // Standard Ethereum port (default: none)
-      network_id: '*',       // Any network (default: none)
+      host: "127.0.0.1", // Localhost (default: none)
+      port: 8545, // Standard Ethereum port (default: none)
+      network_id: "*", // Any network (default: none)
     },
 
     // Another network with more advanced options...
@@ -49,31 +49,43 @@ module.exports = {
     // Useful for deploying to a public network.
     // NB: It's important to wrap the provider as a function.
     kovan: {
-      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, 'https://kovan.infura.io/v3/'),
+      provider: () =>
+        new HDWalletProvider(
+          process.env.PRIVATE_KEY,
+          "https://kovan.infura.io/v3/"
+        ),
       network_id: 42,
       gas: 6000000,
-      gasPrice: utils.toWei('1', 'gwei'),
+      gasPrice: utils.toWei("1", "gwei"),
       // confirmations: 0,
       // timeoutBlocks: 200,
-      skipDryRun: true
+      skipDryRun: true,
     },
     rinkeby: {
-      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, 'https://rinkeby.infura.io/v3/97c8bf358b9942a9853fab1ba93dc5b3'),
+      provider: () =>
+        new HDWalletProvider(
+          process.env.PRIVATE_KEY,
+          "https://rinkeby.infura.io/v3/97c8bf358b9942a9853fab1ba93dc5b3"
+        ),
       network_id: 4,
       gas: 6000000,
-      gasPrice: utils.toWei('1', 'gwei'),
+      gasPrice: utils.toWei("1", "gwei"),
       // confirmations: 0,
       // timeoutBlocks: 200,
-      skipDryRun: true
+      skipDryRun: true,
     },
     mainnet: {
-      provider: () => new HDWalletProvider(process.env.PRIVATE_KEY, 'http://ethereum-rpc.trustwalletapp.com'),
+      provider: () =>
+        new HDWalletProvider(
+          process.env.PRIVATE_KEY,
+          "http://ethereum-rpc.trustwalletapp.com"
+        ),
       network_id: 1,
       gas: 6000000,
-      gasPrice: utils.toWei('2', 'gwei'),
+      gasPrice: utils.toWei("2", "gwei"),
       // confirmations: 0,
       // timeoutBlocks: 200,
-      skipDryRun: true
+      skipDryRun: true,
     },
 
     // CELO networks
@@ -81,14 +93,14 @@ module.exports = {
       provider: kit.web3.currentProvider,
       network_id: 44787,
       gas: 6000000,
-      gasPrice: utils.toWei('0.1', 'gwei'),
+      gasPrice: utils.toWei("0.1", "gwei"),
     },
     mainnet: {
       provider: kit.web3.currentProvider,
       network_id: 42220,
       gas: 6000000,
-      gasPrice: utils.toWei('0.1', 'gwei'),
-    }
+      gasPrice: utils.toWei("0.1", "gwei"),
+    },
 
     // Useful for private networks
     // private: {
@@ -106,21 +118,24 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: '0.5.17',    // Fetch exact version from solc-bin (default: truffle's version)
+      version: "0.5.17", // Fetch exact version from solc-bin (default: truffle's version)
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
-      settings: {          // See the solidity docs for advice about optimization and evmVersion
+      settings: {
+        // See the solidity docs for advice about optimization and evmVersion
         optimizer: {
           enabled: true,
-          runs: 200
+          runs: 200,
         },
         // evmVersion: "byzantium"
-      }
+      },
     },
     external: {
-      command: 'node ./compileHasher.js',
-      targets: [{
-        path: './build/Hasher.json'
-      }]
-    }
-  }
-}
+      command: "node ./compileHasher.js",
+      targets: [
+        {
+          path: "./build/Hasher.json",
+        },
+      ],
+    },
+  },
+};

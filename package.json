@@ -22,7 +22,8 @@
     "migrate:alfajores": "npx truffle migrate --network alfajores",
     "eslint": "npx eslint --ignore-path .gitignore .",
     "flat": "npx truffle-flattener contracts/ETHTornado.sol > ETHTornado_flat.sol && npx truffle-flattener contracts/ERC20Tornado.sol > ERC20Tornado_flat.sol",
-    "download": "node downloadKeys.js"
+    "download": "node downloadKeys.js",
+    "prepare": "husky install"
   },
   "keywords": [],
   "author": "",
@@ -52,6 +53,9 @@
     "websnark": "git+https://github.com/tornadocash/websnark.git#4c0af6a8b65aabea3c09f377f63c44e7a58afa6d"
   },
   "devDependencies": {
-    "@celo/contractkit": "^1.0.2"
+    "@celo/contractkit": "^1.0.2",
+    "husky": "^7.0.0",
+    "prettier": "2.3.2",
+    "pretty-quick": "^3.1.1"
   }
 }

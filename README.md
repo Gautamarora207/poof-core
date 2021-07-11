@@ -1,4 +1,4 @@
-# Poof Cash 
+# Poof Cash
 
 Poof Cash is a non-custodial Celo and ERC20 privacy solution based on zkSNARKs. It improves transaction privacy by breaking the on-chain link between the recipient and destination addresses. It uses a smart contract that accepts ERC20 deposits that can be withdrawn by a different address. Whenever ERC20 is withdrawn by the new address, there is no way to link the withdrawal to the deposit, ensuring complete privacy.
 
@@ -19,9 +19,11 @@ You can read more about it in [this medium article](https://medium.com/@tornado.
 2. `npm run download`
 3. `npm run build:contract`
 4. `cp .env.example .env`. Edit your .env:
-  - For `TOKEN_AMOUNT`, specify the size of the pool you want to support
-  - For `PRIVATE_KEY` specify the private key you want to deploy with
-  - For `ERC20_TOKEN` specify the token address you want to support
+
+- For `TOKEN_AMOUNT`, specify the size of the pool you want to support
+- For `PRIVATE_KEY` specify the private key you want to deploy with
+- For `ERC20_TOKEN` specify the token address you want to support
+
 5. `npx truffle migrate --network mainnet`
 6. OPTIONAL: `npx truffle migrate --network mainnet --reset --f 5` for each additional pool
 
@@ -109,7 +111,9 @@ Example:
 > Done
 
 ## How to resolve ENS name to DNS name for a relayer
+
 NOTE: Not yet relevant for CELO
+
 1. Visit https://etherscan.io/enslookup and put relayer ENS name to the form.
 2. Copy the namehash (1) and click on the `Resolver` link (2)
    ![enslookup](docs/enslookup.png)
