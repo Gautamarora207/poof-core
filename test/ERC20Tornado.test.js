@@ -14,6 +14,7 @@ const {
 const Account = require("../src/account");
 const { takeSnapshot, revertSnapshot } = require("../lib/ganacheHelper");
 
+const Hasher = artifacts.require("./Hasher.sol");
 const Verifier = artifacts.require("./Verifier.sol");
 const Tornado = artifacts.require("./ERC20Tornado.sol");
 const FeeManager = artifacts.require("./FeeManager.sol");
@@ -84,7 +85,9 @@ contract("ERC20Tornado", (accounts) => {
     tree = new MerkleTree(levels, null, prefix);
     token = await Token.new();
     feeManager = await FeeManager.new(sender);
+    const hasher = await Hasher.new();
     const verifier = await Verifier.new();
+    await Tornado.link(Hasher, hasher.address);
     tornado = await Tornado.new(
       verifier.address,
       feeManager.address,
