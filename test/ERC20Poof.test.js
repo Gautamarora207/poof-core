@@ -60,6 +60,7 @@ contract("ERC20Poof", (accounts) => {
   let poof;
   let feeManager;
   let token;
+  let token2;
   let badRecipient;
   const sender = accounts[0];
   const operator = accounts[0];
@@ -85,6 +86,7 @@ contract("ERC20Poof", (accounts) => {
   before(async () => {
     tree = new MerkleTree(levels, null, prefix);
     token = await Token.new();
+    token2 = await Token.new();
     feeManager = await FeeManager.new(sender);
     const hasher = await Hasher.new();
     const verifier = await Verifier.new();
@@ -570,6 +572,56 @@ contract("ERC20Poof", (accounts) => {
       reason.should.be.equal(
         "Incorrect refund amount received by the contract"
       );
+    });
+  });
+
+  describe("#governanceClaim", () => {
+    it("should work", async () => {
+      await token.mint(poof.address, 1000);
+      const balancePoofBefore = await token.balanceOf(poof.address);
+      const balanceGovBefore = await token.balanceOf(governance);
+      await poof.governanceClaim(token.address);
+      const balancePoofAfter = await token.balanceOf(poof.address);
+      const balanceGovAfter = await token.balanceOf(governance);
+
+      balancePoofBefore.sub(balancePoofAfter).should.be.eq.BN(toBN("1000"));
+      balanceGovAfter.sub(balanceGovBefore).should.be.eq.BN(toBN("1000"));
+    });
+
+    it("should not claim more than what users have deposited", async () => {
+      // User deposit
+      let commitment = toFixedHex(43);
+      await token.approve(poof.address, tokenDenomination);
+      await poof.deposit(commitment, [], { from: sender });
+
+      // Mint
+      await token.mint(poof.address, 1000);
+      const balancePoofBefore = await token.balanceOf(poof.address);
+      const balanceGovBefore = await token.balanceOf(governance);
+      await poof.governanceClaim(token.address);
+      const balancePoofAfter = await token.balanceOf(poof.address);
+      const balanceGovAfter = await token.balanceOf(governance);
+
+      balancePoofBefore.sub(balancePoofAfter).should.be.eq.BN(toBN("1000"));
+      balanceGovAfter.sub(balanceGovBefore).should.be.eq.BN(toBN("1000"));
+    });
+
+    it("should claim a different ERC20", async () => {
+      // User deposit
+      let commitment = toFixedHex(43);
+      await token.approve(poof.address, tokenDenomination);
+      await poof.deposit(commitment, [], { from: sender });
+
+      // Mint token2
+      await token2.mint(poof.address, 1000);
+      const balancePoofBefore = await token2.balanceOf(poof.address);
+      const balanceGovBefore = await token2.balanceOf(governance);
+      await poof.governanceClaim(token2.address);
+      const balancePoofAfter = await token2.balanceOf(poof.address);
+      const balanceGovAfter = await token2.balanceOf(governance);
+
+      balancePoofBefore.sub(balancePoofAfter).should.be.eq.BN(toBN("1000"));
+      balanceGovAfter.sub(balanceGovBefore).should.be.eq.BN(toBN("1000"));
     });
   });
 

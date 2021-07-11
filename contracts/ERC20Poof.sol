@@ -1,13 +1,16 @@
 pragma solidity 0.5.17;
 
 import "./ERC20Tornado.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 contract ERC20Poof is ERC20Tornado {
   using SafeERC20 for IERC20;
+  using SafeMath for uint256;
 
   address public governance;
+  uint256 public totalDepositBalance;
 
   constructor(
     IVerifier _verifier,
@@ -21,11 +24,30 @@ contract ERC20Poof is ERC20Tornado {
     governance = _governance;
   }
 
-  // @dev Claims tokens in contract to send back to governance
+  function _processDeposit() internal {
+    super._processDeposit();
+    totalDepositBalance = totalDepositBalance.add(denomination);
+  }
+
+  function _processWithdraw(address payable _recipient, address payable _relayer, uint256 _relayer_fee, uint256 _refund) internal {
+    super._processWithdraw(
+      _recipient,
+      _relayer,
+      _relayer_fee,
+      _refund
+    );
+    totalDepositBalance = totalDepositBalance.sub(denomination);
+  }
+
+  // @dev Claims extra tokens in contract to send back to governance
   // @param token The token address to claim
   function governanceClaim(IERC20 _token) external {
     uint256 balance = _token.balanceOf(address(this));
-    require(balance > 0, "Can't claim a 0 amount");
-    _token.safeTransfer(governance, balance);
+    uint256 claimable = balance;
+    if (address(_token) == token) {
+      claimable = balance.sub(totalDepositBalance);
+    }
+    require(claimable > 0, "Can't claim a 0 amount");
+    _token.safeTransfer(governance, claimable);
   }
 }
