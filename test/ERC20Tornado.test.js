@@ -6,7 +6,7 @@ require("chai")
 const fs = require("fs");
 
 const { getEncryptionPublicKey } = require("eth-sig-util");
-const { hexToBytes, toBN } = require("web3-utils");
+const { hexToBytes, toBN, toWei } = require("web3-utils");
 const {
   packEncryptedMessage,
   unpackEncryptedMessage,
@@ -14,13 +14,11 @@ const {
 const Account = require("../src/account");
 const { takeSnapshot, revertSnapshot } = require("../lib/ganacheHelper");
 
+const Verifier = artifacts.require("./Verifier.sol");
 const Tornado = artifacts.require("./ERC20Tornado.sol");
 const FeeManager = artifacts.require("./FeeManager.sol");
 const BadRecipient = artifacts.require("./BadRecipient.sol");
 const Token = artifacts.require("./ERC20Mock.sol");
-const USDTToken = artifacts.require("./IUSDT.sol");
-const { CELO_AMOUNT, TOKEN_AMOUNT, MERKLE_TREE_HEIGHT, ERC20_TOKEN } =
-  process.env;
 
 const websnarkUtils = require("websnark/src/utils");
 const buildGroth16 = require("websnark/src/groth16");
@@ -61,17 +59,17 @@ contract("ERC20Tornado", (accounts) => {
   let tornado;
   let feeManager;
   let token;
-  let usdtToken;
   let badRecipient;
   const sender = accounts[0];
   const operator = accounts[0];
-  const levels = MERKLE_TREE_HEIGHT || 16;
-  let tokenDenomination = TOKEN_AMOUNT || "1000000000000000000"; // 1 ether
+  const levels = 20;
+  let tokenDenomination = toWei("1"); // 1 ether
   let snapshotId;
   let prefix = "test";
   let tree;
-  const fee = bigInt(CELO_AMOUNT).shr(1) || bigInt(1e17);
-  const refund = CELO_AMOUNT || "1000000000000000000"; // 1 ether
+  const celoAmount = toWei("0.1");
+  const fee = bigInt(celoAmount).shr(1);
+  const refund = celoAmount;
   let recipient = getRandomRecipient();
   const relayer = accounts[1];
   let groth16;
@@ -84,15 +82,19 @@ contract("ERC20Tornado", (accounts) => {
 
   before(async () => {
     tree = new MerkleTree(levels, null, prefix);
-    tornado = await Tornado.deployed();
-    if (ERC20_TOKEN) {
-      token = await Token.at(ERC20_TOKEN);
-      usdtToken = await USDTToken.at(ERC20_TOKEN);
-    } else {
-      token = await Token.deployed();
-      await token.mint(sender, tokenDenomination);
-    }
-    feeManager = await FeeManager.deployed();
+    token = await Token.new();
+    feeManager = await FeeManager.new(sender);
+    const verifier = await Verifier.new();
+    tornado = await Tornado.new(
+      verifier.address,
+      feeManager.address,
+      tokenDenomination,
+      levels,
+      sender,
+      token.address
+    );
+
+    await token.mint(sender, tokenDenomination);
     badRecipient = await BadRecipient.new();
     snapshotId = await takeSnapshot();
     groth16 = await buildGroth16();
@@ -563,259 +565,6 @@ contract("ERC20Tornado", (accounts) => {
       reason.should.be.equal(
         "Incorrect refund amount received by the contract"
       );
-    });
-
-    it.skip("should work with REAL USDT", async () => {
-      // dont forget to specify your token in .env
-      // USDT decimals is 6, so TOKEN_AMOUNT=1000000
-      // and sent `tokenDenomination` to accounts[0] (0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1)
-      // run ganache as
-      // ganache-cli --fork https://kovan.infura.io/v3/27a9649f826b4e31a83e07ae09a87448@13147586  -d --keepAliveTimeout 20
-      const deposit = generateDeposit();
-      const user = accounts[4];
-      const userBal = await usdtToken.balanceOf(user);
-      console.log("userBal", userBal.toString());
-      const senderBal = await usdtToken.balanceOf(sender);
-      console.log("senderBal", senderBal.toString());
-      await tree.insert(deposit.commitment);
-      await usdtToken.transfer(user, tokenDenomination, { from: sender });
-      console.log("transfer done");
-
-      const balanceUserBefore = await usdtToken.balanceOf(user);
-      console.log("balanceUserBefore", balanceUserBefore.toString());
-      await usdtToken.approve(tornado.address, tokenDenomination, {
-        from: user,
-      });
-      console.log("approve done");
-      const allowanceUser = await usdtToken.allowance(user, tornado.address);
-      console.log("allowanceUser", allowanceUser.toString());
-      await tornado.deposit(toFixedHex(deposit.commitment), [], {
-        from: user,
-        gasPrice: "0",
-      });
-      console.log("deposit done");
-
-      const balanceUserAfter = await usdtToken.balanceOf(user);
-      balanceUserAfter.should.be.eq.BN(
-        toBN(balanceUserBefore).sub(toBN(tokenDenomination))
-      );
-
-      const { root, path_elements, path_index } = await tree.path(0);
-
-      // Circuit input
-      const input = stringifyBigInts({
-        // public
-        root,
-        nullifierHash: pedersenHash(deposit.nullifier.toBuffer("le", 31)),
-        relayer: operator,
-        recipient,
-        fee,
-        refund,
-
-        // private
-        nullifier: deposit.nullifier,
-        secret: deposit.secret,
-        pathElements: path_elements,
-        pathIndices: path_index,
-      });
-
-      const proofData = await websnarkUtils.genWitnessAndProve(
-        groth16,
-        input,
-        circuit,
-        proving_key
-      );
-      const { proof } = websnarkUtils.toSolidityInput(proofData);
-
-      const balanceTornadoBefore = await usdtToken.balanceOf(tornado.address);
-      const balanceRelayerBefore = await usdtToken.balanceOf(relayer);
-      const ethBalanceOperatorBefore = await web3.eth.getBalance(operator);
-      const balanceRecieverBefore = await usdtToken.balanceOf(
-        toFixedHex(recipient, 20)
-      );
-      const ethBalanceRecieverBefore = await web3.eth.getBalance(
-        toFixedHex(recipient, 20)
-      );
-      let isSpent = await tornado.isSpent(
-        input.nullifierHash.toString(16).padStart(66, "0x00000")
-      );
-      isSpent.should.be.equal(false);
-
-      // Uncomment to measure gas usage
-      // gas = await tornado.withdraw.estimateGas(proof, publicSignals, { from: relayer, gasPrice: '0' })
-      // console.log('withdraw gas:', gas)
-      const args = [
-        toFixedHex(input.root),
-        toFixedHex(input.nullifierHash),
-        toFixedHex(input.recipient, 20),
-        toFixedHex(input.relayer, 20),
-        toFixedHex(input.fee),
-        toFixedHex(input.refund),
-      ];
-      const { logs } = await tornado.withdraw(proof, ...args, {
-        value: refund,
-        from: relayer,
-        gasPrice: "0",
-      });
-
-      const balanceTornadoAfter = await usdtToken.balanceOf(tornado.address);
-      const balanceRelayerAfter = await usdtToken.balanceOf(relayer);
-      const ethBalanceOperatorAfter = await web3.eth.getBalance(operator);
-      const balanceRecieverAfter = await usdtToken.balanceOf(
-        toFixedHex(recipient, 20)
-      );
-      const ethBalanceRecieverAfter = await web3.eth.getBalance(
-        toFixedHex(recipient, 20)
-      );
-      const feeBN = toBN(fee.toString());
-      balanceTornadoAfter.should.be.eq.BN(
-        toBN(balanceTornadoBefore).sub(toBN(tokenDenomination))
-      );
-      balanceRelayerAfter.should.be.eq.BN(toBN(balanceRelayerBefore));
-      ethBalanceOperatorAfter.should.be.eq.BN(
-        toBN(ethBalanceOperatorBefore).add(feeBN)
-      );
-      balanceRecieverAfter.should.be.eq.BN(
-        toBN(balanceRecieverBefore).add(toBN(tokenDenomination))
-      );
-      ethBalanceRecieverAfter.should.be.eq.BN(
-        toBN(ethBalanceRecieverBefore).add(toBN(refund)).sub(feeBN)
-      );
-
-      logs[0].event.should.be.equal("Withdrawal");
-      logs[0].args.nullifierHash.should.be.eq.BN(
-        toBN(input.nullifierHash.toString())
-      );
-      logs[0].args.relayer.should.be.eq.BN(operator);
-      logs[0].args.fee.should.be.eq.BN(feeBN);
-      isSpent = await tornado.isSpent(
-        input.nullifierHash.toString(16).padStart(66, "0x00000")
-      );
-      isSpent.should.be.equal(true);
-    });
-    it.skip("should work with REAL DAI", async () => {
-      // dont forget to specify your token in .env
-      // and send `tokenDenomination` to accounts[0] (0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1)
-      // run ganache as
-      // npx ganache-cli --fork https://kovan.infura.io/v3/27a9649f826b4e31a83e07ae09a87448@13146218 -d --keepAliveTimeout 20
-      const deposit = generateDeposit();
-      const user = accounts[4];
-      const userBal = await token.balanceOf(user);
-      console.log("userBal", userBal.toString());
-      const senderBal = await token.balanceOf(sender);
-      console.log("senderBal", senderBal.toString());
-      await tree.insert(deposit.commitment);
-      await token.transfer(user, tokenDenomination, { from: sender });
-      console.log("transfer done");
-
-      const balanceUserBefore = await token.balanceOf(user);
-      console.log("balanceUserBefore", balanceUserBefore.toString());
-      await token.approve(tornado.address, tokenDenomination, { from: user });
-      console.log("approve done");
-      await tornado.deposit(toFixedHex(deposit.commitment), [], {
-        from: user,
-        gasPrice: "0",
-      });
-      console.log("deposit done");
-
-      const balanceUserAfter = await token.balanceOf(user);
-      balanceUserAfter.should.be.eq.BN(
-        toBN(balanceUserBefore).sub(toBN(tokenDenomination))
-      );
-
-      const { root, path_elements, path_index } = await tree.path(0);
-
-      // Circuit input
-      const input = stringifyBigInts({
-        // public
-        root,
-        nullifierHash: pedersenHash(deposit.nullifier.toBuffer("le", 31)),
-        relayer: operator,
-        recipient,
-        fee,
-        refund,
-
-        // private
-        nullifier: deposit.nullifier,
-        secret: deposit.secret,
-        pathElements: path_elements,
-        pathIndices: path_index,
-      });
-
-      const proofData = await websnarkUtils.genWitnessAndProve(
-        groth16,
-        input,
-        circuit,
-        proving_key
-      );
-      const { proof } = websnarkUtils.toSolidityInput(proofData);
-
-      const balanceTornadoBefore = await token.balanceOf(tornado.address);
-      const balanceRelayerBefore = await token.balanceOf(relayer);
-      const ethBalanceOperatorBefore = await web3.eth.getBalance(operator);
-      const balanceRecieverBefore = await token.balanceOf(
-        toFixedHex(recipient, 20)
-      );
-      const ethBalanceRecieverBefore = await web3.eth.getBalance(
-        toFixedHex(recipient, 20)
-      );
-      let isSpent = await tornado.isSpent(
-        input.nullifierHash.toString(16).padStart(66, "0x00000")
-      );
-      isSpent.should.be.equal(false);
-
-      // Uncomment to measure gas usage
-      // gas = await tornado.withdraw.estimateGas(proof, publicSignals, { from: relayer, gasPrice: '0' })
-      // console.log('withdraw gas:', gas)
-      const args = [
-        toFixedHex(input.root),
-        toFixedHex(input.nullifierHash),
-        toFixedHex(input.recipient, 20),
-        toFixedHex(input.relayer, 20),
-        toFixedHex(input.fee),
-        toFixedHex(input.refund),
-      ];
-      const { logs } = await tornado.withdraw(proof, ...args, {
-        value: refund,
-        from: relayer,
-        gasPrice: "0",
-      });
-      console.log("withdraw done");
-
-      const balanceTornadoAfter = await token.balanceOf(tornado.address);
-      const balanceRelayerAfter = await token.balanceOf(relayer);
-      const ethBalanceOperatorAfter = await web3.eth.getBalance(operator);
-      const balanceRecieverAfter = await token.balanceOf(
-        toFixedHex(recipient, 20)
-      );
-      const ethBalanceRecieverAfter = await web3.eth.getBalance(
-        toFixedHex(recipient, 20)
-      );
-      const feeBN = toBN(fee.toString());
-      balanceTornadoAfter.should.be.eq.BN(
-        toBN(balanceTornadoBefore).sub(toBN(tokenDenomination))
-      );
-      balanceRelayerAfter.should.be.eq.BN(toBN(balanceRelayerBefore));
-      ethBalanceOperatorAfter.should.be.eq.BN(
-        toBN(ethBalanceOperatorBefore).add(feeBN)
-      );
-      balanceRecieverAfter.should.be.eq.BN(
-        toBN(balanceRecieverBefore).add(toBN(tokenDenomination))
-      );
-      ethBalanceRecieverAfter.should.be.eq.BN(
-        toBN(ethBalanceRecieverBefore).add(toBN(refund)).sub(feeBN)
-      );
-
-      logs[0].event.should.be.equal("Withdrawal");
-      logs[0].args.nullifierHash.should.be.eq.BN(
-        toBN(input.nullifierHash.toString())
-      );
-      logs[0].args.relayer.should.be.eq.BN(operator);
-      logs[0].args.fee.should.be.eq.BN(feeBN);
-      isSpent = await tornado.isSpent(
-        input.nullifierHash.toString(16).padStart(66, "0x00000")
-      );
-      isSpent.should.be.equal(true);
     });
   });
 
