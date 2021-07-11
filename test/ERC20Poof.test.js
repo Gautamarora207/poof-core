@@ -16,7 +16,7 @@ const { takeSnapshot, revertSnapshot } = require("../lib/ganacheHelper");
 
 const Hasher = artifacts.require("./Hasher.sol");
 const Verifier = artifacts.require("./Verifier.sol");
-const Tornado = artifacts.require("./ERC20Tornado.sol");
+const Poof = artifacts.require("./ERC20Poof.sol");
 const FeeManager = artifacts.require("./FeeManager.sol");
 const BadRecipient = artifacts.require("./BadRecipient.sol");
 const Token = artifacts.require("./ERC20Mock.sol");
@@ -56,8 +56,8 @@ function generateDeposit() {
   return deposit;
 }
 
-contract("ERC20Tornado", (accounts) => {
-  let tornado;
+contract("ERC20Poof", (accounts) => {
+  let poof;
   let feeManager;
   let token;
   let badRecipient;
@@ -73,6 +73,7 @@ contract("ERC20Tornado", (accounts) => {
   const refund = celoAmount;
   let recipient = getRandomRecipient();
   const relayer = accounts[1];
+  const governance = accounts[2];
   let groth16;
   let circuit;
   let proving_key;
@@ -87,14 +88,15 @@ contract("ERC20Tornado", (accounts) => {
     feeManager = await FeeManager.new(sender);
     const hasher = await Hasher.new();
     const verifier = await Verifier.new();
-    await Tornado.link(Hasher, hasher.address);
-    tornado = await Tornado.new(
+    await Poof.link(Hasher, hasher.address);
+    poof = await Poof.new(
       verifier.address,
       feeManager.address,
       tokenDenomination,
       levels,
       sender,
-      token.address
+      token.address,
+      governance
     );
 
     await token.mint(sender, tokenDenomination);
@@ -109,7 +111,7 @@ contract("ERC20Tornado", (accounts) => {
 
   describe("#constructor", () => {
     it("should initialize", async () => {
-      const tokenFromContract = await tornado.token();
+      const tokenFromContract = await poof.token();
       tokenFromContract.should.be.equal(token.address);
     });
   });
@@ -117,9 +119,9 @@ contract("ERC20Tornado", (accounts) => {
   describe("#deposit", () => {
     it("should work", async () => {
       const commitment = toFixedHex(43);
-      await token.approve(tornado.address, tokenDenomination);
+      await token.approve(poof.address, tokenDenomination);
 
-      let { logs } = await tornado.deposit(commitment, [], { from: sender });
+      let { logs } = await poof.deposit(commitment, [], { from: sender });
 
       logs[0].event.should.be.equal("Deposit");
       logs[0].args.commitment.should.be.equal(commitment);
@@ -128,9 +130,9 @@ contract("ERC20Tornado", (accounts) => {
 
     it("should not allow to send ether on deposit", async () => {
       const commitment = toFixedHex(43);
-      await token.approve(tornado.address, tokenDenomination);
+      await token.approve(poof.address, tokenDenomination);
 
-      let error = await tornado.deposit(commitment, [], {
+      let error = await poof.deposit(commitment, [], {
         from: sender,
         value: 1e6,
       }).should.be.rejected;
@@ -154,11 +156,11 @@ contract("ERC20Tornado", (accounts) => {
       await token.mint(user, tokenDenomination);
 
       const balanceUserBefore = await token.balanceOf(user);
-      await token.approve(tornado.address, tokenDenomination, { from: user });
+      await token.approve(poof.address, tokenDenomination, { from: user });
       // Uncomment to measure gas usage
-      // let gas = await tornado.deposit.estimateGas(toBN(deposit.commitment.toString()), { from: user, gasPrice: '0' })
+      // let gas = await poof.deposit.estimateGas(toBN(deposit.commitment.toString()), { from: user, gasPrice: '0' })
       // console.log('deposit gas:', gas)
-      const { logs: depositLogs } = await tornado.deposit(
+      const { logs: depositLogs } = await poof.deposit(
         toFixedHex(deposit.commitment),
         hexToBytes(encryptedMessage),
         { from: user, gasPrice: "0" }
@@ -204,7 +206,7 @@ contract("ERC20Tornado", (accounts) => {
       );
       const { proof } = websnarkUtils.toSolidityInput(proofData);
 
-      const balanceTornadoBefore = await token.balanceOf(tornado.address);
+      const balancePoofBefore = await token.balanceOf(poof.address);
       const balanceRelayerBefore = await token.balanceOf(relayer);
       const balanceRecieverBefore = await token.balanceOf(
         toFixedHex(recipient, 20)
@@ -215,10 +217,10 @@ contract("ERC20Tornado", (accounts) => {
         toFixedHex(recipient, 20)
       );
       const ethBalanceRelayerBefore = await web3.eth.getBalance(relayer);
-      let isSpent = await tornado.isSpent(toFixedHex(input.nullifierHash));
+      let isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(false);
       // Uncomment to measure gas usage
-      // gas = await tornado.withdraw.estimateGas(proof, publicSignals, { from: relayer, gasPrice: '0' })
+      // gas = await poof.withdraw.estimateGas(proof, publicSignals, { from: relayer, gasPrice: '0' })
       // console.log('withdraw gas:', gas)
       const args = [
         toFixedHex(input.root),
@@ -228,13 +230,13 @@ contract("ERC20Tornado", (accounts) => {
         toFixedHex(input.fee),
         toFixedHex(input.refund),
       ];
-      const { logs } = await tornado.withdraw(proof, ...args, {
+      const { logs } = await poof.withdraw(proof, ...args, {
         value: refund,
         from: relayer,
         gasPrice: "0",
       });
 
-      const balanceTornadoAfter = await token.balanceOf(tornado.address);
+      const balancePoofAfter = await token.balanceOf(poof.address);
       const balanceRelayerAfter = await token.balanceOf(relayer);
       const ethBalanceOperatorAfter = await web3.eth.getBalance(operator);
       const balanceRecieverAfter = await token.balanceOf(
@@ -245,8 +247,8 @@ contract("ERC20Tornado", (accounts) => {
       );
       const ethBalanceRelayerAfter = await web3.eth.getBalance(relayer);
       const feeBN = toBN(fee.toString());
-      balanceTornadoAfter.should.be.eq.BN(
-        toBN(balanceTornadoBefore).sub(toBN(tokenDenomination))
+      balancePoofAfter.should.be.eq.BN(
+        toBN(balancePoofBefore).sub(toBN(tokenDenomination))
       );
       balanceRelayerAfter.should.be.eq.BN(
         toBN(balanceRelayerBefore).add(feeBN)
@@ -269,7 +271,7 @@ contract("ERC20Tornado", (accounts) => {
       );
       logs[0].args.relayer.should.be.eq.BN(relayer);
       logs[0].args.fee.should.be.eq.BN(feeBN);
-      isSpent = await tornado.isSpent(toFixedHex(input.nullifierHash));
+      isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(true);
     });
 
@@ -284,11 +286,11 @@ contract("ERC20Tornado", (accounts) => {
       await token.mint(user, tokenDenomination);
 
       const balanceUserBefore = await token.balanceOf(user);
-      await token.approve(tornado.address, tokenDenomination, { from: user });
+      await token.approve(poof.address, tokenDenomination, { from: user });
       // Uncomment to measure gas usage
-      // let gas = await tornado.deposit.estimateGas(toBN(deposit.commitment.toString()), { from: user, gasPrice: '0' })
+      // let gas = await poof.deposit.estimateGas(toBN(deposit.commitment.toString()), { from: user, gasPrice: '0' })
       // console.log('deposit gas:', gas)
-      await tornado.deposit(toFixedHex(deposit.commitment), [], {
+      await poof.deposit(toFixedHex(deposit.commitment), [], {
         from: user,
         gasPrice: "0",
       });
@@ -324,7 +326,7 @@ contract("ERC20Tornado", (accounts) => {
       );
       const { proof } = websnarkUtils.toSolidityInput(proofData);
 
-      const balanceTornadoBefore = await token.balanceOf(tornado.address);
+      const balancePoofBefore = await token.balanceOf(poof.address);
       const balanceRelayerBefore = await token.balanceOf(relayer);
       const balanceRecieverBefore = await token.balanceOf(
         toFixedHex(recipient, 20)
@@ -335,10 +337,10 @@ contract("ERC20Tornado", (accounts) => {
         toFixedHex(recipient, 20)
       );
       const ethBalanceRelayerBefore = await web3.eth.getBalance(relayer);
-      let isSpent = await tornado.isSpent(toFixedHex(input.nullifierHash));
+      let isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(false);
       // Uncomment to measure gas usage
-      // gas = await tornado.withdraw.estimateGas(proof, publicSignals, { from: relayer, gasPrice: '0' })
+      // gas = await poof.withdraw.estimateGas(proof, publicSignals, { from: relayer, gasPrice: '0' })
       // console.log('withdraw gas:', gas)
       const args = [
         toFixedHex(input.root),
@@ -348,13 +350,13 @@ contract("ERC20Tornado", (accounts) => {
         toFixedHex(input.fee),
         toFixedHex(input.refund),
       ];
-      const { logs } = await tornado.withdraw(proof, ...args, {
+      const { logs } = await poof.withdraw(proof, ...args, {
         value: refund,
         from: relayer,
         gasPrice: "0",
       });
 
-      const balanceTornadoAfter = await token.balanceOf(tornado.address);
+      const balancePoofAfter = await token.balanceOf(poof.address);
       const balanceRelayerAfter = await token.balanceOf(relayer);
       const ethBalanceOperatorAfter = await web3.eth.getBalance(operator);
       const balanceRecieverAfter = await token.balanceOf(
@@ -367,8 +369,8 @@ contract("ERC20Tornado", (accounts) => {
       const balanceFeeToAfter = await token.balanceOf(accounts[5]);
       const feeBN = toBN(fee.toString());
       const feeToFee = toBN(tokenDenomination).div(toBN(200));
-      balanceTornadoAfter.should.be.eq.BN(
-        toBN(balanceTornadoBefore).sub(toBN(tokenDenomination))
+      balancePoofAfter.should.be.eq.BN(
+        toBN(balancePoofBefore).sub(toBN(tokenDenomination))
       );
       balanceRelayerAfter.should.be.eq.BN(
         toBN(balanceRelayerBefore).add(feeBN)
@@ -395,7 +397,7 @@ contract("ERC20Tornado", (accounts) => {
       );
       logs[0].args.relayer.should.be.eq.BN(relayer);
       logs[0].args.fee.should.be.eq.BN(feeBN);
-      isSpent = await tornado.isSpent(toFixedHex(input.nullifierHash));
+      isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(true);
     });
 
@@ -407,8 +409,8 @@ contract("ERC20Tornado", (accounts) => {
       await token.mint(user, tokenDenomination);
 
       const balanceUserBefore = await token.balanceOf(user);
-      await token.approve(tornado.address, tokenDenomination, { from: user });
-      await tornado.deposit(toFixedHex(deposit.commitment), [], {
+      await token.approve(poof.address, tokenDenomination, { from: user });
+      await poof.deposit(toFixedHex(deposit.commitment), [], {
         from: user,
         gasPrice: "0",
       });
@@ -444,7 +446,7 @@ contract("ERC20Tornado", (accounts) => {
       );
       const { proof } = websnarkUtils.toSolidityInput(proofData);
 
-      const balanceTornadoBefore = await token.balanceOf(tornado.address);
+      const balancePoofBefore = await token.balanceOf(poof.address);
       const balanceRelayerBefore = await token.balanceOf(relayer);
       const balanceRecieverBefore = await token.balanceOf(
         toFixedHex(recipient, 20)
@@ -455,7 +457,7 @@ contract("ERC20Tornado", (accounts) => {
         toFixedHex(recipient, 20)
       );
       const ethBalanceRelayerBefore = await web3.eth.getBalance(relayer);
-      let isSpent = await tornado.isSpent(toFixedHex(input.nullifierHash));
+      let isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(false);
 
       const args = [
@@ -466,13 +468,13 @@ contract("ERC20Tornado", (accounts) => {
         toFixedHex(input.fee),
         toFixedHex(input.refund),
       ];
-      const { logs } = await tornado.withdraw(proof, ...args, {
+      const { logs } = await poof.withdraw(proof, ...args, {
         value: refund,
         from: relayer,
         gasPrice: "0",
       });
 
-      const balanceTornadoAfter = await token.balanceOf(tornado.address);
+      const balancePoofAfter = await token.balanceOf(poof.address);
       const balanceRelayerAfter = await token.balanceOf(relayer);
       const ethBalanceOperatorAfter = await web3.eth.getBalance(operator);
       const balanceRecieverAfter = await token.balanceOf(
@@ -483,8 +485,8 @@ contract("ERC20Tornado", (accounts) => {
       );
       const ethBalanceRelayerAfter = await web3.eth.getBalance(relayer);
       const feeBN = toBN(fee.toString());
-      balanceTornadoAfter.should.be.eq.BN(
-        toBN(balanceTornadoBefore).sub(toBN(tokenDenomination))
+      balancePoofAfter.should.be.eq.BN(
+        toBN(balancePoofBefore).sub(toBN(tokenDenomination))
       );
       balanceRelayerAfter.should.be.eq.BN(
         toBN(balanceRelayerBefore).add(feeBN)
@@ -503,7 +505,7 @@ contract("ERC20Tornado", (accounts) => {
       );
       logs[0].args.relayer.should.be.eq.BN(relayer);
       logs[0].args.fee.should.be.eq.BN(feeBN);
-      isSpent = await tornado.isSpent(toFixedHex(input.nullifierHash));
+      isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(true);
     });
 
@@ -512,8 +514,8 @@ contract("ERC20Tornado", (accounts) => {
       const user = accounts[4];
       await tree.insert(deposit.commitment);
       await token.mint(user, tokenDenomination);
-      await token.approve(tornado.address, tokenDenomination, { from: user });
-      await tornado.deposit(toFixedHex(deposit.commitment), [], {
+      await token.approve(poof.address, tokenDenomination, { from: user });
+      await poof.deposit(toFixedHex(deposit.commitment), [], {
         from: user,
         gasPrice: "0",
       });
@@ -552,7 +554,7 @@ contract("ERC20Tornado", (accounts) => {
         toFixedHex(input.fee),
         toFixedHex(input.refund),
       ];
-      let { reason } = await tornado.withdraw(proof, ...args, {
+      let { reason } = await poof.withdraw(proof, ...args, {
         value: 1,
         from: relayer,
         gasPrice: "0",
@@ -560,7 +562,7 @@ contract("ERC20Tornado", (accounts) => {
       reason.should.be.equal(
         "Incorrect refund amount received by the contract"
       );
-      ({ reason } = await tornado.withdraw(proof, ...args, {
+      ({ reason } = await poof.withdraw(proof, ...args, {
         value: toBN(refund).mul(toBN(2)),
         from: relayer,
         gasPrice: "0",
