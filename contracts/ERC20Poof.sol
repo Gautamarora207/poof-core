@@ -44,10 +44,14 @@ contract ERC20Poof is ERC20Tornado {
   function governanceClaim(IERC20 _token) external {
     uint256 balance = _token.balanceOf(address(this));
     uint256 claimable = balance;
-    if (address(_token) == token) {
+    if (_isPoolToken(address(_token))) {
       claimable = balance.sub(totalDepositBalance);
     }
     require(claimable > 0, "Can't claim a 0 amount");
     _token.safeTransfer(governance, claimable);
+  }
+
+  function _isPoolToken(address _token) internal returns (bool) {
+    return _token == token;
   }
 }
