@@ -1,6 +1,6 @@
 /* global artifacts */
 require("dotenv").config({ path: "../.env" });
-const ERC20Poof = artifacts.require("ERC20Poof");
+const ERC20Morphose = artifacts.require("ERC20Morphose");
 const hasherContract = artifacts.require("Hasher");
 const ERC20Mock = artifacts.require("ERC20Mock");
 
@@ -17,17 +17,17 @@ const {
 module.exports = function (deployer, network, accounts) {
   return deployer.then(async () => {
     const hasherInstance = await hasherContract.deployed();
-    await ERC20Poof.link(hasherContract, hasherInstance.address);
+    await ERC20Morphose.link(hasherContract, hasherInstance.address);
     let token = ERC20_TOKEN;
     if (token === "" || network === "development") {
       const tokenInstance = await deployer.deploy(ERC20Mock);
       token = tokenInstance.address;
     }
     console.log(
-      `Deploying ERC20Poof with token ${ERC20_TOKEN} and denomination ${TOKEN_AMOUNT}`
+      `Deploying ERC20Morphose with token ${ERC20_TOKEN} and denomination ${TOKEN_AMOUNT}`
     );
-    const poof = await deployer.deploy(
-      ERC20Poof,
+    const morphose = await deployer.deploy(
+      ERC20Morphose,
       VERIFIER,
       FEE_MANAGER,
       TOKEN_AMOUNT,
@@ -36,6 +36,6 @@ module.exports = function (deployer, network, accounts) {
       token,
       GOVERNANCE
     );
-    console.log("ERC20Poof's address ", poof.address);
+    console.log("ERC20Morphose's address ", morphose.address);
   });
 };

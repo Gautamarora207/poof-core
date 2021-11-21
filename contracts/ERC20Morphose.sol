@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-contract ERC20Poof is ERC20Tornado {
+contract ERC20Morphose is ERC20Tornado {
   using SafeERC20 for IERC20;
   using SafeMath for uint256;
 

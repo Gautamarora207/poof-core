@@ -1,15 +1,15 @@
 pragma solidity 0.5.17;
 
-import "./ERC20Poof.sol";
+import "./ERC20Morphose.sol";
 import "./interfaces/IMoola.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
 /*
-ERC20MPoof is a Poof pool that does automatic conversion for Moola mTokens
+ERC20MMorphose is a Morphose pool that does automatic conversion for Moola mTokens
 */
-contract ERC20MPoof is ERC20Poof {
+contract ERC20MMorphose is ERC20Morphose {
   using SafeERC20 for IERC20;
   using SafeMath for uint256;
 
@@ -29,7 +29,7 @@ contract ERC20MPoof is ERC20Poof {
     address _governance,
     ILendingPoolCore _core,
     ILendingPool _pool
-  ) ERC20Poof(_verifier, _feeManager, _denomination, _merkleTreeHeight, _owner, _token, _governance) public {
+  ) ERC20Morphose(_verifier, _feeManager, _denomination, _merkleTreeHeight, _owner, _token, _governance) public {
     core = _core;
     pool = _pool;
     aToken = IAToken(core.getReserveATokenAddress(token));

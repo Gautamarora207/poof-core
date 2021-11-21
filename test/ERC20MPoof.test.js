@@ -16,7 +16,7 @@ const { takeSnapshot, revertSnapshot } = require("../lib/ganacheHelper");
 
 const Hasher = artifacts.require("./Hasher.sol");
 const Verifier = artifacts.require("./Verifier.sol");
-const Poof = artifacts.require("./ERC20MPoof.sol");
+const Morphose = artifacts.require("./ERC20MMorphose.sol");
 const FeeManager = artifacts.require("./FeeManager.sol");
 const BadRecipient = artifacts.require("./BadRecipient.sol");
 const Token = artifacts.require("./ERC20Mock.sol");
@@ -59,8 +59,8 @@ function generateDeposit() {
   return deposit;
 }
 
-contract("ERC20MPoof", (accounts) => {
-  let poof;
+contract("ERC20MMorphose", (accounts) => {
+  let morphose;
   let token;
   let aToken;
   let core;
@@ -98,8 +98,8 @@ contract("ERC20MPoof", (accounts) => {
     const feeManager = await FeeManager.new(sender);
     const hasher = await Hasher.new();
     const verifier = await Verifier.new();
-    await Poof.link(Hasher, hasher.address);
-    poof = await Poof.new(
+    await Morphose.link(Hasher, hasher.address);
+    morphose = await Morphose.new(
       verifier.address,
       feeManager.address,
       tokenDenomination,
@@ -122,7 +122,7 @@ contract("ERC20MPoof", (accounts) => {
 
   describe("#constructor", () => {
     it("should initialize", async () => {
-      const tokenFromContract = await poof.token();
+      const tokenFromContract = await morphose.token();
       tokenFromContract.should.be.equal(token.address);
     });
   });
@@ -130,10 +130,10 @@ contract("ERC20MPoof", (accounts) => {
   describe("#deposit", () => {
     it("should work", async () => {
       const commitment = toFixedHex(43);
-      await token.approve(poof.address, tokenDenomination);
+      await token.approve(morphose.address, tokenDenomination);
       const aTokenBalanceBefore = await token.balanceOf(aToken.address);
 
-      let { logs } = await poof.deposit(commitment, [], { from: sender });
+      let { logs } = await morphose.deposit(commitment, [], { from: sender });
 
       logs[0].event.should.be.equal("Deposit");
       logs[0].args.commitment.should.be.equal(commitment);
@@ -147,9 +147,9 @@ contract("ERC20MPoof", (accounts) => {
 
     it("should not allow to send ether on deposit", async () => {
       const commitment = toFixedHex(43);
-      await token.approve(poof.address, tokenDenomination);
+      await token.approve(morphose.address, tokenDenomination);
 
-      let error = await poof.deposit(commitment, [], {
+      let error = await morphose.deposit(commitment, [], {
         from: sender,
         value: 1e6,
       }).should.be.rejected;
@@ -173,11 +173,11 @@ contract("ERC20MPoof", (accounts) => {
       await token.mint(user, tokenDenomination);
 
       const balanceUserBefore = await token.balanceOf(user);
-      await token.approve(poof.address, tokenDenomination, { from: user });
+      await token.approve(morphose.address, tokenDenomination, { from: user });
       // Uncomment to measure gas usage
-      // let gas = await poof.deposit.estimateGas(toBN(deposit.commitment.toString()), { from: user, gasPrice: '0' })
+      // let gas = await morphose.deposit.estimateGas(toBN(deposit.commitment.toString()), { from: user, gasPrice: '0' })
       // console.log('deposit gas:', gas)
-      const { logs: depositLogs } = await poof.deposit(
+      const { logs: depositLogs } = await morphose.deposit(
         toFixedHex(deposit.commitment),
         hexToBytes(encryptedMessage),
         { from: user, gasPrice: "0" }
@@ -223,7 +223,7 @@ contract("ERC20MPoof", (accounts) => {
       );
       const { proof } = websnarkUtils.toSolidityInput(proofData);
 
-      const balancePoofBefore = await aToken.balanceOf(poof.address);
+      const balanceMorphoseBefore = await aToken.balanceOf(morphose.address);
       const balanceRelayerBefore = await token.balanceOf(relayer);
       const balanceRecieverBefore = await token.balanceOf(
         toFixedHex(recipient, 20)
@@ -234,7 +234,7 @@ contract("ERC20MPoof", (accounts) => {
         toFixedHex(recipient, 20)
       );
       const ethBalanceRelayerBefore = await web3.eth.getBalance(relayer);
-      let isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
+      let isSpent = await morphose.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(false);
       const args = [
         toFixedHex(input.root),
@@ -244,13 +244,13 @@ contract("ERC20MPoof", (accounts) => {
         toFixedHex(input.fee),
         toFixedHex(input.refund),
       ];
-      const { logs } = await poof.withdraw(proof, ...args, {
+      const { logs } = await morphose.withdraw(proof, ...args, {
         value: refund,
         from: relayer,
         gasPrice: "0",
       });
 
-      const balancePoofAfter = await aToken.balanceOf(poof.address);
+      const balanceMorphoseAfter = await aToken.balanceOf(morphose.address);
       const balanceRelayerAfter = await token.balanceOf(relayer);
       const ethBalanceOperatorAfter = await web3.eth.getBalance(operator);
       const balanceRecieverAfter = await token.balanceOf(
@@ -261,8 +261,8 @@ contract("ERC20MPoof", (accounts) => {
       );
       const ethBalanceRelayerAfter = await web3.eth.getBalance(relayer);
       const feeBN = toBN(fee.toString());
-      balancePoofAfter.should.be.eq.BN(
-        toBN(balancePoofBefore).sub(toBN(tokenDenomination))
+      balanceMorphoseAfter.should.be.eq.BN(
+        toBN(balanceMorphoseBefore).sub(toBN(tokenDenomination))
       );
       balanceRelayerAfter.should.be.eq.BN(
         toBN(balanceRelayerBefore).add(feeBN)
@@ -285,57 +285,57 @@ contract("ERC20MPoof", (accounts) => {
       );
       logs[0].args.relayer.should.be.eq.BN(relayer);
       logs[0].args.fee.should.be.eq.BN(feeBN);
-      isSpent = await poof.isSpent(toFixedHex(input.nullifierHash));
+      isSpent = await morphose.isSpent(toFixedHex(input.nullifierHash));
       isSpent.should.be.equal(true);
     });
   });
 
   describe("#governanceClaim", () => {
     it("should work", async () => {
-      await aToken.mint(poof.address, 1000);
-      const balancePoofBefore = await aToken.balanceOf(poof.address);
+      await aToken.mint(morphose.address, 1000);
+      const balanceMorphoseBefore = await aToken.balanceOf(morphose.address);
       const balanceGovBefore = await aToken.balanceOf(governance);
-      await poof.governanceClaim(aToken.address);
-      const balancePoofAfter = await aToken.balanceOf(poof.address);
+      await morphose.governanceClaim(aToken.address);
+      const balanceMorphoseAfter = await aToken.balanceOf(morphose.address);
       const balanceGovAfter = await aToken.balanceOf(governance);
 
-      balancePoofBefore.sub(balancePoofAfter).should.be.eq.BN(toBN("1000"));
+      balanceMorphoseBefore.sub(balanceMorphoseAfter).should.be.eq.BN(toBN("1000"));
       balanceGovAfter.sub(balanceGovBefore).should.be.eq.BN(toBN("1000"));
     });
 
     it("should not claim more than what users have deposited", async () => {
       // User deposit
       let commitment = toFixedHex(43);
-      await token.approve(poof.address, tokenDenomination);
-      await poof.deposit(commitment, [], { from: sender });
+      await token.approve(morphose.address, tokenDenomination);
+      await morphose.deposit(commitment, [], { from: sender });
 
       // Mint
-      await aToken.mint(poof.address, 1000);
-      const balancePoofBefore = await aToken.balanceOf(poof.address);
+      await aToken.mint(morphose.address, 1000);
+      const balanceMorphoseBefore = await aToken.balanceOf(morphose.address);
       const balanceGovBefore = await aToken.balanceOf(governance);
-      await poof.governanceClaim(aToken.address);
-      const balancePoofAfter = await aToken.balanceOf(poof.address);
+      await morphose.governanceClaim(aToken.address);
+      const balanceMorphoseAfter = await aToken.balanceOf(morphose.address);
       const balanceGovAfter = await aToken.balanceOf(governance);
 
-      balancePoofBefore.sub(balancePoofAfter).should.be.eq.BN("1000");
+      balanceMorphoseBefore.sub(balanceMorphoseAfter).should.be.eq.BN("1000");
       balanceGovAfter.sub(balanceGovBefore).should.be.eq.BN("1000");
     });
 
     it("should claim a different ERC20", async () => {
       // User deposit
       let commitment = toFixedHex(43);
-      await token.approve(poof.address, tokenDenomination);
-      await poof.deposit(commitment, [], { from: sender });
+      await token.approve(morphose.address, tokenDenomination);
+      await morphose.deposit(commitment, [], { from: sender });
 
       // Mint token
-      await token.mint(poof.address, 1000);
-      const balancePoofBefore = await token.balanceOf(poof.address);
+      await token.mint(morphose.address, 1000);
+      const balanceMorphoseBefore = await token.balanceOf(morphose.address);
       const balanceGovBefore = await token.balanceOf(governance);
-      await poof.governanceClaim(token.address);
-      const balancePoofAfter = await token.balanceOf(poof.address);
+      await morphose.governanceClaim(token.address);
+      const balanceMorphoseAfter = await token.balanceOf(morphose.address);
       const balanceGovAfter = await token.balanceOf(governance);
 
-      balancePoofBefore.sub(balancePoofAfter).should.be.eq.BN(toBN("1000"));
+      balanceMorphoseBefore.sub(balanceMorphoseAfter).should.be.eq.BN(toBN("1000"));
       balanceGovAfter.sub(balanceGovBefore).should.be.eq.BN(toBN("1000"));
     });
   });

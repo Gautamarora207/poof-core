@@ -2,17 +2,17 @@ require("dotenv").config();
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 const utils = require("web3-utils");
 
-const ContractKit = require("@celo/contractkit");
-const Web3 = require("web3");
-const path = require("path");
+// const ContractKit = require("@celo/contractkit");
+// const Web3 = require("web3");
 
-// Connect to the desired network
-const web3 = new Web3(process.env.RPC_URL);
-const kit = ContractKit.newKitFromWeb3(web3);
-kit.addAccount(process.env.PRIVATE_KEY);
+// // Connect to the desired network
+// const web3 = new Web3(process.env.RPC_URL);
+// const kit = ContractKit.newKitFromWeb3(web3);
+// kit.addAccount(process.env.PRIVATE_KEY);
 
 module.exports = {
-  contracts_build_directory: path.join(__dirname, "client/contracts"),
+  contracts_directory: './contracts/',
+  contracts_build_directory: './abis/',
   /**
    * Networks define how you connect to your ethereum client and let you set the
    * defaults web3 uses to send transactions. If you don't specify one truffle
@@ -36,78 +36,19 @@ module.exports = {
       network_id: "*", // Any network (default: none)
     },
 
-    // Another network with more advanced options...
-    // advanced: {
-    //   port: 8777,             // Custom port
-    //   network_id: 1342,       // Custom network
-    //   gas: 8500000,           // Gas sent with each transaction (default: ~6700000)
-    //   gasPrice: 20000000000,  // 20 gwei (in wei) (default: 100 gwei)
-    //   from: <address>,        // Account to send txs from (default: accounts[0])
-    //   websockets: true        // Enable EventEmitter interface for web3 (default: false)
-    // },
-
-    // Useful for deploying to a public network.
-    // NB: It's important to wrap the provider as a function.
-    kovan: {
-      provider: () =>
-        new HDWalletProvider(
-          process.env.PRIVATE_KEY,
-          "https://kovan.infura.io/v3/"
-        ),
-      network_id: 42,
-      gas: 6000000,
-      gasPrice: utils.toWei("1", "gwei"),
-      // confirmations: 0,
-      // timeoutBlocks: 200,
-      skipDryRun: true,
-    },
     rinkeby: {
       provider: () =>
         new HDWalletProvider(
-          process.env.PRIVATE_KEY,
-          "https://rinkeby.infura.io/v3/97c8bf358b9942a9853fab1ba93dc5b3"
+          process.env.MNEMONIC,
+          `wss://rinkeby.infura.io/ws/v3/${process.env.INFURA_API_KEY}`
         ),
       network_id: 4,
-      gas: 6000000,
+      gas: 5000000,
       gasPrice: utils.toWei("1", "gwei"),
       // confirmations: 0,
       // timeoutBlocks: 200,
       skipDryRun: true,
     },
-    mainnet: {
-      provider: () =>
-        new HDWalletProvider(
-          process.env.PRIVATE_KEY,
-          "http://ethereum-rpc.trustwalletapp.com"
-        ),
-      network_id: 1,
-      gas: 6000000,
-      gasPrice: utils.toWei("2", "gwei"),
-      // confirmations: 0,
-      // timeoutBlocks: 200,
-      skipDryRun: true,
-    },
-
-    // CELO networks
-    alfajores: {
-      provider: kit.web3.currentProvider,
-      network_id: 44787,
-      gas: 6000000,
-      gasPrice: utils.toWei("0.1", "gwei"),
-    },
-    mainnet: {
-      provider: kit.web3.currentProvider,
-      network_id: 42220,
-      gas: 6000000,
-      gasPrice: utils.toWei("0.1", "gwei"),
-    },
-
-    // Useful for private networks
-    // private: {
-    //   provider: () => new HDWalletProvider(mnemonic, `https://network.io`),
-    //   network_id: 2111,   // This network is yours, in the cloud.
-    //   production: true    // Treats this network as if it was a public net. (default: false)
-    // }
   },
 
   // Set default mocha options here, use special reporters etc.

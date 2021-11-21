@@ -2,7 +2,7 @@ build
 client
 .vscode
 Tornado_flat.sol
-
+.env.example
 # Created by .ignore support plugin (hsz.mobi)
 ### Node template
 # Logs
